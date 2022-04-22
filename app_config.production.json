@@ -1,0 +1,5 @@
+{
+    "DEBUG": "false",
+    "IS_ADMIN": "false",
+    "ODATA_ENDPOINT": "https://api.veniocrm.com/odata"
+}

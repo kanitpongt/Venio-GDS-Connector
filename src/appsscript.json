@@ -1,0 +1,14 @@
+{
+  "runtimeVersion": "V8",
+  "dataStudio": {
+    "name": "Venio's Google Data Studio Connector",
+    "logoUrl": "logoUrl",
+    "company": "Gofive",
+    "companyUrl": "https://www.gofive.co.th/",
+    "addonUrl": "addonUrl",
+    "supportUrl": "supportUrl",
+    "description": "description",
+    "sources": [""],
+    "authType": ["KEY"]
+  }
+}

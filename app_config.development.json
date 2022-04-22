@@ -1,0 +1,5 @@
+{
+    "DEBUG": "True",
+    "IS_ADMIN": "True",
+    "ODATA_ENDPOINT": "https://dev.tks.co.th/Venio/api/odata"
+}
