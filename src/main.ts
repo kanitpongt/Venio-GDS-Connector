@@ -92,7 +92,9 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
       .newTextInput()
       .setId("cache_ttl")
       .setName("Cache TTL")
-      .setHelpText("Do you want to set how often data is refreshed? Minimum: 0, Maximum 60 minutes, default to 25.")
+      .setHelpText(
+        "Do you want to set how often data is refreshed? Minimum: 0, Maximum 60 minutes, default to 25."
+      )
       .setPlaceholder(Math.trunc(CACHE_DATA_TIMEOUT / 60).toString())
       .setAllowOverride(true);
 
@@ -186,18 +188,24 @@ const getData = (request: GetDataRequest): GetDataResponse => {
   const table = user.getProperty(TABLE_PROPERTY_KEY);
 
   var cache_ttl_prop = parseInt(user.getProperty(CACHE_TTL_PROPERTY_KEY));
-  cache_ttl_prop = Number.isInteger(cache_ttl_prop) ? cache_ttl_prop : CACHE_DATA_TIMEOUT;
+  cache_ttl_prop = Number.isInteger(cache_ttl_prop)
+    ? cache_ttl_prop
+    : CACHE_DATA_TIMEOUT;
 
-  var cache_ttl_config = validateCacheTTLConfig(request.configParams.cache_ttl as string);
-  
-  var cache_ttl = Number.isInteger(cache_ttl_config) ? cache_ttl_config : cache_ttl_prop; // Override cache ttl changes from config
+  var cache_ttl_config = validateCacheTTLConfig(
+    request.configParams.cache_ttl as string
+  );
+
+  var cache_ttl = Number.isInteger(cache_ttl_config)
+    ? cache_ttl_config
+    : cache_ttl_prop; // Override cache ttl changes from config
 
   // Ensure that this value will not be null in getEntityDataFromCache
   if (cache_ttl !== cache_ttl_prop) {
     user.setProperty(CACHE_TTL_PROPERTY_KEY, cache_ttl.toString());
   }
 
-  var rawJson;
+  var responseRows;
 
   if (debug) {
     Logger.log("we are in getData() function.");
@@ -214,19 +222,23 @@ const getData = (request: GetDataRequest): GetDataResponse => {
     })
   );
 
-  rawJson = getEntityDataFromCache(table); // Retrive row of entity data from cache, null if no cached data
+  responseRows = getEntityDataFromCache(table); // Retrive row of entity data from cache, null if no cached data
 
-  if (rawJson === null) {
+  if (responseRows === null) {
     if (debug) {
       Logger.log("No cached data for table: " + table);
     }
-    
-    rawJson = getEntityData(path, table, key); // Make request to url on table with authentication key
+
+    responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
   } else if (debug) {
     Logger.log("Get data from cache");
   }
 
-  var rows = parseOdataResponseToRow(requestedFields, rawJson); // Parse raw response to array of row
+  if (debug) {
+    Logger.log("Raw Json Response");
+    Logger.log(responseRows);
+  }
+  var rows = parseOdataResponseToRow(requestedFields, responseRows); // Parse raw response to array of row
 
   if (debug) {
     Logger.log("requestedFields are");
@@ -236,8 +248,11 @@ const getData = (request: GetDataRequest): GetDataResponse => {
       Logger.log(field.getType());
     });
 
-    Logger.log("First Row: ");
-    Object.values(rows[0]).map((property) => Logger.log(property));
+    Logger.log(rows.length);
+    if (rows.length) {
+      Logger.log("First Row: ");
+      Object.values(rows[0]).map((property) => Logger.log(property));
+    }
   }
 
   return {

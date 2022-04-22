@@ -3,6 +3,7 @@ const UNIQUE_SEPARATOR = ",";
 const VENIO_EDM_SCHEMA_NS = "Venio.OData.API.Models";
 const VENIO_ENTITY_SCHEMA_NS = "Default";
 const MAX_CACHE_BYTES = 100000; // Max cached size per key
+const ROW_SIZE_MULTIPLIER = 1.5;
 
 const getAvailableTablesFromUrl = (url: string, key: string): string[] => {
   // get another response based on the new token
@@ -170,7 +171,7 @@ const getEntitySchema = (
   return parseSchemaXml(rawXml, entity);
 };
 
-const getEntityData = (url: string, entity: string, key: string): string => {
+const getEntityData = (url: string, entity: string, key: string): ODataResponseRows => {
   var response, rawJson;
 
   var URLs = [url, "/", entity];
@@ -201,10 +202,17 @@ const getEntityData = (url: string, entity: string, key: string): string => {
       .throwException();
   }
 
-  var parsedValue = null;
+
+  if (debug) {
+    Logger.log("Raw Response Content:");
+    Logger.log(rawJson);
+  }
+
+  var responseRows: ODataResponseRows;
 
   try {
-    parsedValue = JSON.parse(rawJson).value;
+    let jsonResponse = JSON.parse(rawJson);
+    responseRows = jsonResponse.value;
   } catch (error) {
     cc.newUserError()
       .setText("Invalid response from server.")
@@ -212,34 +220,33 @@ const getEntityData = (url: string, entity: string, key: string): string => {
       .throwException();
   }
 
-  if (parsedValue === null) {
+  if (responseRows === null || responseRows.length === 0) {
     cc.newUserError()
       .setText("Empty response from server")
-      .setDebugText("Null JSON response from server.")
+      .setDebugText("Null JSON or empty rows response from server.")
       .throwException();
   }
 
-  putEntityDataToCache(entity, parsedValue);
+  putEntityDataToCache(entity, responseRows);
 
-  return parsedValue;
+  return responseRows;
 };
 
 const getEntityDataFromCache = (entity: string): ODataResponseRows | null => {
-  var cache = CacheService.getUserCache();
-  var cachedKeys = cache.get(entity);
+  const cache = CacheService.getUserCache();
+  const cachedKeys = cache.get(entity);
 
   if (cachedKeys === null) return null;
 
-  var cachedKeysArray = cachedKeys.split(UNIQUE_SEPARATOR);
-  var shardedData = cache.getAll(cachedKeysArray);
+  const cachedKeysArray = cachedKeys.split(UNIQUE_SEPARATOR);
+  const shardedData = cache.getAll(cachedKeysArray);
 
-  // TODO: Assemble all cached data
+  // Assemble all cached data
   const rows = [];
   Object.values(shardedData).forEach((rawJson) => {
     let dataRows = JSON.parse(rawJson);
     dataRows.forEach((row) => rows.push(row));
   });
-  //var cachedData = Object.values(shardedData).join("")
 
   return rows;
 };
@@ -249,12 +256,12 @@ const putEntityDataToCache = (entity: string, rawData: ODataResponseRows) => {
   let cache_ttl = parseInt(user.getProperty(CACHE_TTL_PROPERTY_KEY));
   cache_ttl = Number.isInteger(cache_ttl) ? cache_ttl : CACHE_DATA_TIMEOUT; // Probably unnecessary as it was set in get data anyway
   const cache = CacheService.getUserCache();
-  var cachedDataKeys;
-  var cachedData;
+  let cachedDataKeys;
+  let cachedData;
 
   // Distribute and cached all data
   try {
-    cachedData = chunkRowByBytes(rawData, MAX_CACHE_BYTES);
+    cachedData = chunkRowByBytes(rawData, MAX_CACHE_BYTES); // Cache data by rows
   } catch (error) {
     Logger.log("Error while chunking bytes: " + error);
     return;

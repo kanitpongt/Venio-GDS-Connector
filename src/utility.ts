@@ -116,24 +116,22 @@ const parseSchemaXml = (
   }
 
   // Get all properties of the EntityType
-  var edmProperties = requestedEntityType.getChildren();
-  var requestedEdmProperties = {};
+  const edmProperties = requestedEntityType.getChildren();
+  const requestedEdmProperties = {};
 
   // Parse all properties into object
   for (var i = 0; i < edmProperties.length; i++) {
-    var property = edmProperties[i];
-
-    var propertyName = property.getAttribute("Name");
+    const property = edmProperties[i];
+    const propertyName = property.getAttribute("Name");
 
     if (propertyName === null) continue;
 
-    propertyName = propertyName.getValue();
+    const propertyNameValue = propertyName.getValue();
     var propertyType = property.getAttribute("Type");
     propertyType = propertyType === null ? "NoType" : propertyType.getValue();
 
-    metaDataMap.set(propertyName, propertyType); // Save property and type to map
-
-    requestedEdmProperties[propertyName] = propertyType;
+    metaDataMap.set(propertyNameValue, propertyType); // Save property and type to map
+    requestedEdmProperties[propertyNameValue] = propertyType;
   }
 
   if (debug) {
@@ -147,8 +145,9 @@ const parseOdataResponseToRow = (
   requestedFields: Fields,
   responseRows: ODataResponseRows
 ): GetDataRows => {
-  var rows = [];
-  var fields = requestedFields.asArray();
+  const rows = [];
+  const fields = requestedFields.asArray();
+
   for (var i = 0; i < responseRows.length; i++) {
     var entityObject = responseRows[i];
     var row = [];
@@ -184,7 +183,6 @@ const formatDataByType = (data: string, type: GetDataStudioType): string => {
     case types.YEAR_MONTH_DAY:
       data = data.replace(/-/g, "");
       break;
-
     default:
       return data;
   }
@@ -195,10 +193,15 @@ const chunkRowByBytes = (
   s: ODataResponseRows,
   maxBytes: number
 ): CachedChunk => {
+  if (s.length == 0) return;
+  
   const result = {};
-  var singleRowSize =
-    Utilities.newBlob(JSON.stringify(s[0])).getBytes().length * 1.5;
-  let rowPerCache = Math.trunc(maxBytes / singleRowSize);
+  const singleRowString = JSON.stringify(s[0]);
+  const singleRowBlob = Utilities.newBlob("");
+  singleRowBlob.setDataFromString(singleRowString);
+  const singleRowSize = singleRowBlob.getBytes().length * ROW_SIZE_MULTIPLIER; // Multiply
+  const rowPerCache = Math.trunc(maxBytes / singleRowSize);
+
   let buf = s;
   let curr = buf.slice(0, rowPerCache);
 
@@ -216,7 +219,7 @@ const validateCacheTTLConfig = (cache_ttl_config: string): number => {
   let cache_ttl_check = parseInt(cache_ttl_config);
   cache_ttl_check = cache_ttl_check > 60 ? CACHE_DATA_TIMEOUT : cache_ttl_check;
   cache_ttl_check = cache_ttl_check < 0 ? CACHE_DATA_TIMEOUT : cache_ttl_check;
-  let cache_ttl = cache_ttl_check * 60.0;
+  const cache_ttl = cache_ttl_check * 60.0;
 
   return cache_ttl;
 };
