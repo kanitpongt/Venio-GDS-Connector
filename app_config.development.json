@@ -1,5 +1,15 @@
 {
-    "DEBUG": "True",
-    "IS_ADMIN": "True",
-    "ODATA_ENDPOINT": "https://dev.tks.co.th/Venio/api/odata"
+  "clasp_json": {
+    "scriptId": "1u9fgqhhxeuxx40KbEaWHDya1pIqW-b8aB5N_17cfG9gHQs4v24OZccqu",
+    "rootDir": "dist"
+  },
+  "build_define": {
+    "DEBUG": "true",
+    "IS_ADMIN": "true",
+    "ODATA_ENDPOINT": "\"https://dev.tks.co.th/Venio/api/odata\"",
+    "DEFAULT_CACHE_DATA_TIMEOUT": "1500",
+    "MAX_CACHE_BYTES": "10000",
+    "VENIO_EDM_SCHEMA_NS": "\"Venio.OData.API.Models\"",
+    "VENIO_ENTITY_SCHEMA_NS": "\"Default\""
+  }
 }

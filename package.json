@@ -4,8 +4,11 @@
     "latest": "AKfycbxNjmBk7DyUKYICQBJat0EdAyTaN0_mVAkLTsPMsFOT_KYAwibRqUP-8KTsnB798Uc9"
   },
   "scripts": {
+    "prebuild": "rm -rf dist/*.js .clasp.json",
+    "build": "node scripts/build.js",
     "prettier": "prettier --write \"src/**/*.js\"",
-    "push": "dscc-scripts connector push_changes",
+    "push_dev": "NODE_ENV=development npm run build && dscc-scripts connector push_changes",
+    "push_prod": "NODE_ENV=production npm run build && dscc-scripts connector push_changes",
     "watch": "dscc-scripts connector watch_changes",
     "open": "dscc-scripts connector open_script",
     "open_template": "dscc-scripts connector open_template",
@@ -16,7 +19,9 @@
   "devDependencies": {
     "@google/clasp": "^2.1.0",
     "@google/dscc-scripts": "^1.0.17",
-    "prettier": "^1.16.4",
-    "@types/google-apps-script": "^1.0.46"
+    "@types/google-apps-script": "^1.0.46",
+    "esbuild": "^0.14.38",
+    "esbuild-gas-plugin": "^0.3.2",
+    "prettier": "^1.16.4"
   }
 }

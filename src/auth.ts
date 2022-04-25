@@ -1,5 +1,5 @@
 const validateCredentials = (key: string, path: string): boolean => {
-  if (debug) {
+  if (DEBUG) {
     Logger.log("Validating Credentials...");
     Logger.log("Path: " + path);
     Logger.log("Key: " + key);
@@ -36,7 +36,7 @@ const validateCredentials = (key: string, path: string): boolean => {
     return false;
   }
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log(
       "Got response from service." +
         response +
@@ -65,7 +65,7 @@ const validateCredentials = (key: string, path: string): boolean => {
 
 // https://developers.google.com/datastudio/connector/auth#resetauth
 const resetAuth = () => {
-  if (debug) {
+  if (DEBUG) {
     Logger.log("Resetting authentication...");
   }
   var user = PropertiesService.getUserProperties();

@@ -3,5 +3,6 @@
     "lib": ["esnext"],
     "experimentalDecorators": true,
     "types": ["google-apps-script"]
-  }
+  },
+  "exclude": ["node_modules", "scripts/*.ts"]
 }

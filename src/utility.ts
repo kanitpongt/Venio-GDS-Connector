@@ -17,7 +17,7 @@ const parseSchemaXml = (
 
   let dataServices = root.getChild("DataServices", root.getNamespace());
 
-  if (debug) Logger.log("DataServices: " + dataServices);
+  if (DEBUG) Logger.log("DataServices: " + dataServices);
 
   let serviceSchemas = dataServices.getChildren();
   var venioEdmSchema = null; // Contains mapping of Edm model name and its schema
@@ -55,7 +55,7 @@ const parseSchemaXml = (
   var requestedEntityType = null;
   var entityTypeName = null;
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log(venioEntityModels);
   }
   // Search for the name of EntityType for the user selected entity (table).
@@ -63,7 +63,7 @@ const parseSchemaXml = (
     var entitySet = venioEntityModels[i];
     var enitySetName = entitySet.getAttribute("Name").getValue();
 
-    if (debug) {
+    if (DEBUG) {
       Logger.log("Entity Set: " + enitySetName);
     }
 
@@ -111,7 +111,7 @@ const parseSchemaXml = (
       .throwException();
   }
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log("Edm EntityType: " + requestedEntityType);
   }
 
@@ -134,7 +134,7 @@ const parseSchemaXml = (
     requestedEdmProperties[propertyNameValue] = propertyType;
   }
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log("Edm Properties: " + requestedEdmProperties);
   }
 
@@ -193,9 +193,8 @@ const chunkRowByBytes = (
   s: ODataResponseRows,
   maxBytes: number
 ): CachedChunk => {
-  if (s.length == 0) return;
-  
   const result = {};
+  if (s.length == 0) return result;
   const singleRowString = JSON.stringify(s[0]);
   const singleRowBlob = Utilities.newBlob("");
   singleRowBlob.setDataFromString(singleRowString);
@@ -217,8 +216,10 @@ const chunkRowByBytes = (
 
 const validateCacheTTLConfig = (cache_ttl_config: string): number => {
   let cache_ttl_check = parseInt(cache_ttl_config);
-  cache_ttl_check = cache_ttl_check > 60 ? CACHE_DATA_TIMEOUT : cache_ttl_check;
-  cache_ttl_check = cache_ttl_check < 0 ? CACHE_DATA_TIMEOUT : cache_ttl_check;
+  cache_ttl_check =
+    cache_ttl_check > 60 ? DEFAULT_CACHE_DATA_TIMEOUT : cache_ttl_check;
+  cache_ttl_check =
+    cache_ttl_check < 0 ? DEFAULT_CACHE_DATA_TIMEOUT : cache_ttl_check;
   const cache_ttl = cache_ttl_check * 60.0;
 
   return cache_ttl;

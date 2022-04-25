@@ -1,11 +1,8 @@
 var metaDataMap = new Map(); // Map for keeping track of meta data types to parse paths in the schema correctly
 const UNIQUE_SEPARATOR = ",";
-const VENIO_EDM_SCHEMA_NS = "Venio.OData.API.Models";
-const VENIO_ENTITY_SCHEMA_NS = "Default";
-const MAX_CACHE_BYTES = 100000; // Max cached size per key
 const ROW_SIZE_MULTIPLIER = 1.5;
 
-const getAvailableTablesFromUrl = (url: string, key: string): string[] => {
+function getAvailableTablesFromUrl(url: string, key: string): string[] {
   // get another response based on the new token
   var user = PropertiesService.getUserProperties();
   var response;
@@ -19,7 +16,7 @@ const getAvailableTablesFromUrl = (url: string, key: string): string[] => {
       muteHttpExceptions: true,
     });
   } catch (error) {
-    if (debug) {
+    if (DEBUG) {
       Logger.log("Get Table Error: " + error);
       Logger.log("Url: " + url);
       Logger.log("Key: " + key);
@@ -77,7 +74,7 @@ const getAvailableTablesFromUrl = (url: string, key: string): string[] => {
   }
   user.setProperty(TABLE_LIST_PROPERTY_KEY, tableNames.join(UNIQUE_SEPARATOR));
   return tableNames;
-};
+}
 
 /**
  * This method returns an object that has two fields that indicate the Google
@@ -171,7 +168,11 @@ const getEntitySchema = (
   return parseSchemaXml(rawXml, entity);
 };
 
-const getEntityData = (url: string, entity: string, key: string): ODataResponseRows => {
+const getEntityData = (
+  url: string,
+  entity: string,
+  key: string
+): ODataResponseRows => {
   var response, rawJson;
 
   var URLs = [url, "/", entity];
@@ -202,12 +203,6 @@ const getEntityData = (url: string, entity: string, key: string): ODataResponseR
       .throwException();
   }
 
-
-  if (debug) {
-    Logger.log("Raw Response Content:");
-    Logger.log(rawJson);
-  }
-
   var responseRows: ODataResponseRows;
 
   try {
@@ -234,11 +229,14 @@ const getEntityData = (url: string, entity: string, key: string): ODataResponseR
 
 const getEntityDataFromCache = (entity: string): ODataResponseRows | null => {
   const cache = CacheService.getUserCache();
-  const cachedKeys = cache.get(entity);
+  const cachedDataKeys = cache.get(entity);
 
-  if (cachedKeys === null) return null;
+  if (DEBUG) {
+    Logger.log("Get cached data keys: " + cachedDataKeys);
+  }
+  if (cachedDataKeys === null) return null;
 
-  const cachedKeysArray = cachedKeys.split(UNIQUE_SEPARATOR);
+  const cachedKeysArray = cachedDataKeys.split(UNIQUE_SEPARATOR);
   const shardedData = cache.getAll(cachedKeysArray);
 
   // Assemble all cached data
@@ -254,9 +252,10 @@ const getEntityDataFromCache = (entity: string): ODataResponseRows | null => {
 const putEntityDataToCache = (entity: string, rawData: ODataResponseRows) => {
   const user = PropertiesService.getUserProperties();
   let cache_ttl = parseInt(user.getProperty(CACHE_TTL_PROPERTY_KEY));
-  cache_ttl = Number.isInteger(cache_ttl) ? cache_ttl : CACHE_DATA_TIMEOUT; // Probably unnecessary as it was set in get data anyway
+  cache_ttl = Number.isInteger(cache_ttl)
+    ? cache_ttl
+    : DEFAULT_CACHE_DATA_TIMEOUT; // Probably unnecessary as it was set in get data anyway
   const cache = CacheService.getUserCache();
-  let cachedDataKeys;
   let cachedData;
 
   // Distribute and cached all data
@@ -266,11 +265,24 @@ const putEntityDataToCache = (entity: string, rawData: ODataResponseRows) => {
     Logger.log("Error while chunking bytes: " + error);
     return;
   }
-
   // Combine all sharded cache keys and join with UNIQUE_SEPARATOR
-  cachedDataKeys = Object.keys(cachedData).join(UNIQUE_SEPARATOR);
+  const cachedDataKeys = Object.keys(cachedData);
+  const cachedKeyString = cachedDataKeys.join(UNIQUE_SEPARATOR);
+
+  //cachedData[entity] = cachedKeyString;
 
   // Save all cached data
-  cache.put(entity, cachedDataKeys, cache_ttl);
+  cache.put(entity, cachedKeyString, cache_ttl);
   cache.putAll(cachedData, cache_ttl);
+
+  if (DEBUG) {
+    Logger.log(
+      "Put cached data keys " +
+        entity +
+        ", " +
+        cache_ttl +
+        ":" +
+        cache.get(entity)
+    );
+  }
 };

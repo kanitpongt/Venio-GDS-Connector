@@ -1,16 +1,14 @@
 const cc = DataStudioApp.createCommunityConnector();
-const debug = true;
 const URL_PROPERTY_KEY = "dscc.path";
 const AUTH_PROPERTY_KEY = "dscc.key";
 const TABLE_PROPERTY_KEY = "table";
 const TABLE_LIST_PROPERTY_KEY = "tableNames";
 const CACHE_TTL_PROPERTY_KEY = "cache_ttl";
 // const CACHED_TABLE_PROPERTY_KEY = "lastRequestTable";
-const CACHE_DATA_TIMEOUT = 1500; // In seconds = 25 minutes
 
 // https://developers.google.com/datastudio/connector/reference#isadminuser
 const isAdminUser = (): boolean => {
-  return true;
+  return IS_ADMIN;
 };
 
 // https://developers.google.com/datastudio/connector/reference#getconfig
@@ -24,7 +22,7 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
     config.setIsSteppedConfig(true);
   }
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log("isFirstRequest: " + isFirstRequest);
     Logger.log("isSecondRequest: " + isSecondRequest);
   }
@@ -95,7 +93,7 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
       .setHelpText(
         "Do you want to set how often data is refreshed? Minimum: 0, Maximum 60 minutes, default to 25."
       )
-      .setPlaceholder(Math.trunc(CACHE_DATA_TIMEOUT / 60).toString())
+      .setPlaceholder(Math.trunc(DEFAULT_CACHE_DATA_TIMEOUT / 60).toString())
       .setAllowOverride(true);
 
     var tableOptions = getAvailableTablesFromUrl(
@@ -122,7 +120,7 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
 
   // Save user requested table and set stepped config to false to move to the getData step.
   if (isSecondRequest) {
-    let cache_ttl = CACHE_DATA_TIMEOUT;
+    let cache_ttl = DEFAULT_CACHE_DATA_TIMEOUT;
 
     if (configParams.cache_ttl) {
       cache_ttl = validateCacheTTLConfig(configParams.cache_ttl as string);
@@ -145,13 +143,18 @@ const getFields = (): Fields => {
   const key = user.getProperty(AUTH_PROPERTY_KEY);
   const table = user.getProperty(TABLE_PROPERTY_KEY);
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log("User Requested Table in Get Fields: " + table);
   }
 
+  // let rawXml = getEntitySchemaFromCache(table);
+
+  // if (rawXml === null) {
+  //   rawXml = getEntitySchema(table, key);
+  // }
   const tablePropertiesMap = getEntitySchema(path, table, key); // Return key-value map of property name and Edm type.
 
-  if (debug) Logger.log("Parsed Properties: " + tablePropertiesMap);
+  if (DEBUG) Logger.log("Parsed Properties: " + tablePropertiesMap);
 
   // Create field for each property with type
   Object.entries(tablePropertiesMap).forEach(([name, odataType]) => {
@@ -190,7 +193,7 @@ const getData = (request: GetDataRequest): GetDataResponse => {
   var cache_ttl_prop = parseInt(user.getProperty(CACHE_TTL_PROPERTY_KEY));
   cache_ttl_prop = Number.isInteger(cache_ttl_prop)
     ? cache_ttl_prop
-    : CACHE_DATA_TIMEOUT;
+    : DEFAULT_CACHE_DATA_TIMEOUT;
 
   var cache_ttl_config = validateCacheTTLConfig(
     request.configParams.cache_ttl as string
@@ -202,12 +205,17 @@ const getData = (request: GetDataRequest): GetDataResponse => {
 
   // Ensure that this value will not be null in getEntityDataFromCache
   if (cache_ttl !== cache_ttl_prop) {
+    cache_ttl = cache_ttl * 60;
     user.setProperty(CACHE_TTL_PROPERTY_KEY, cache_ttl.toString());
+
+    if (DEBUG) {
+      Logger.log("Set cache_ttl: " + cache_ttl);
+    }
   }
 
   var responseRows;
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log("we are in getData() function.");
     Logger.log("request parameter within getData() is:");
     Logger.log(request);
@@ -222,25 +230,25 @@ const getData = (request: GetDataRequest): GetDataResponse => {
     })
   );
 
-  responseRows = getEntityDataFromCache(table); // Retrive row of entity data from cache, null if no cached data
+  responseRows = getEntityDataFromCache(table); // Retrieves row of entity data from cache, null if no cached data
 
   if (responseRows === null) {
-    if (debug) {
+    if (DEBUG) {
       Logger.log("No cached data for table: " + table);
     }
 
     responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
-  } else if (debug) {
+  } else if (DEBUG) {
     Logger.log("Get data from cache");
   }
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log("Raw Json Response");
     Logger.log(responseRows);
   }
   var rows = parseOdataResponseToRow(requestedFields, responseRows); // Parse raw response to array of row
 
-  if (debug) {
+  if (DEBUG) {
     Logger.log("requestedFields are");
     let debugRequestedFields = requestedFields.asArray();
     debugRequestedFields.map(function(field) {
@@ -251,7 +259,7 @@ const getData = (request: GetDataRequest): GetDataResponse => {
     Logger.log(rows.length);
     if (rows.length) {
       Logger.log("First Row: ");
-      Object.values(rows[0]).map((property) => Logger.log(property));
+      Logger.log(rows[0].values)
     }
   }
 
