@@ -2,12 +2,12 @@
   "runtimeVersion": "V8",
   "dataStudio": {
     "name": "Venio CRM",
-    "logoUrl": "https://raw.githubusercontent.com/kanitpongt/Venio-GDS-Connector/main/Venio-Logo.png",
+    "logoUrl": "https://i.imgur.com/RYWWtDt.png",
     "company": "Gofive",
     "companyUrl": "https://www.gofive.co.th/",
     "addonUrl": "https://www.gofive.co.th/",
     "supportUrl": "https://www.gofive.co.th/",
-    "description": "Venio CRM Google Data Studio Connector",
+    "description": "Venio CRM Connector for Google Data Studio",
     "sources": [""],
     "authType": ["KEY"]
   }
