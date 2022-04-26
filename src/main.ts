@@ -13,13 +13,16 @@ const isAdminUser = (): boolean => {
 
 // https://developers.google.com/datastudio/connector/reference#getconfig
 const getConfig = (request: GetConfigRequest): GetConfigResponse => {
-  var configParams = request.configParams;
-  var isFirstRequest = configParams === undefined;
-  var isSecondRequest =
-    configParams !== undefined && configParams.request_table !== undefined;
-  var config = cc.getConfig();
+  const configParams = request.configParams;
+  const isFirstRequest = configParams === undefined;
+  const isSecondRequest =
+    !isFirstRequest && configParams.request_table !== undefined;
+  const config = cc.getConfig();
+  const user = PropertiesService.getUserProperties();
+
   if (isFirstRequest) {
     config.setIsSteppedConfig(true);
+    user.setProperty(URL_PROPERTY_KEY, ODATA_ENDPOINT);
   }
 
   if (DEBUG) {
@@ -27,8 +30,8 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
     Logger.log("isSecondRequest: " + isSecondRequest);
   }
 
-  var user = PropertiesService.getUserProperties();
-  var user_key = user.getProperty(AUTH_PROPERTY_KEY);
+  const user_key = user.getProperty(AUTH_PROPERTY_KEY);
+  const service_url = user.getProperty(URL_PROPERTY_KEY);
 
   config
     .newCheckbox()
@@ -37,11 +40,11 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
     .setHelpText("Do you want to reset Auth?")
     .setIsDynamic(true);
 
-  config
-    .newTextInput()
-    .setId("service_url")
-    .setName("Enter url root path of OData services")
-    .setIsDynamic(true);
+  // config
+  //   .newTextInput()
+  //   .setId("service_url")
+  //   .setName("Enter url root path of OData services")
+  //   .setIsDynamic(true);
 
   // If user logs out or authentication key are reset, throw an exception so they know to reset their page
   if (user_key === null) {
@@ -55,9 +58,37 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
     return;
   }
 
+  var validKey = validateCredentials(user_key, service_url); // Send test request to url with authentication key
+
+  if (!validKey) {
+    resetAuth();
+    cc.newUserError()
+      .setText("Invalid authentication key or url.")
+      .throwException();
+    return;
+  }
+
+  var tableOptions = getAvailableTablesFromUrl(service_url, user_key); // Return 2D array of table label and value
+  var table = config
+    .newSelectSingle()
+    .setId("request_table")
+    .setName("Table")
+    .setIsDynamic(true);
+  config.setIsSteppedConfig(true);
+  tableOptions.forEach(function(tableName) {
+    var tableLabel = tableName;
+    var tableValue = tableName;
+    table.addOption(
+      config
+        .newOptionBuilder()
+        .setLabel(tableLabel)
+        .setValue(tableValue)
+    );
+  });
+
   if (!isFirstRequest) {
     if (
-      configParams.service_url === undefined ||
+      service_url === null ||
       user_key === null ||
       configParams.reset_auth === true
     ) {
@@ -66,22 +97,7 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
         .setText(
           "Your authentication have been reset. Please refresh your page to return to re-input authentication key."
         )
-        .setDebugText(
-          "URL: " + configParams.service_url + " ApiKey: " + user_key
-        )
-        .throwException();
-      return;
-    }
-
-    var validKey = validateCredentials(
-      user_key,
-      configParams.service_url as string
-    ); // Send test request to url with authentication key
-
-    if (!validKey) {
-      resetAuth();
-      cc.newUserError()
-        .setText("Invalid authentication key or url.")
+        .setDebugText("URL: " + service_url + " ApiKey: " + user_key)
         .throwException();
       return;
     }
@@ -95,27 +111,6 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
       )
       .setPlaceholder(Math.trunc(DEFAULT_CACHE_DATA_TIMEOUT / 60).toString())
       .setAllowOverride(true);
-
-    var tableOptions = getAvailableTablesFromUrl(
-      configParams.service_url as string,
-      user_key
-    ); // Return 2D array of table label and value
-    var table = config
-      .newSelectSingle()
-      .setId("request_table")
-      .setName("Table")
-      .setIsDynamic(true);
-    config.setIsSteppedConfig(true);
-    tableOptions.forEach(function(tableName) {
-      var tableLabel = tableName;
-      var tableValue = tableName;
-      table.addOption(
-        config
-          .newOptionBuilder()
-          .setLabel(tableLabel)
-          .setValue(tableValue)
-      );
-    });
   }
 
   // Save user requested table and set stepped config to false to move to the getData step.
@@ -127,7 +122,6 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
     }
 
     user.setProperty(CACHE_TTL_PROPERTY_KEY, cache_ttl.toString());
-    user.setProperty(URL_PROPERTY_KEY, configParams.service_url as string);
     user.setProperty(TABLE_PROPERTY_KEY, configParams.request_table as string);
     config.setIsSteppedConfig(false);
   }
@@ -213,7 +207,7 @@ const getData = (request: GetDataRequest): GetDataResponse => {
     }
   }
 
-  var responseRows;
+  var responseRows = null;
 
   if (DEBUG) {
     Logger.log("we are in getData() function.");
@@ -230,22 +224,23 @@ const getData = (request: GetDataRequest): GetDataResponse => {
     })
   );
 
-  responseRows = getEntityDataFromCache(table); // Retrieves row of entity data from cache, null if no cached data
+  //responseRows = getEntityDataFromCache(table); // Retrieves row of entity data from cache, null if no cached data
+  responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
 
-  if (responseRows === null) {
-    if (DEBUG) {
-      Logger.log("No cached data for table: " + table);
-    }
+  // if (responseRows === null) {
+  //   if (DEBUG) {
+  //     Logger.log("No cached data for table: " + table);
+  //   }
 
-    responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
-  } else if (DEBUG) {
-    Logger.log("Get data from cache");
-  }
+  //   responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
+  // } else if (DEBUG) {
+  //   Logger.log("Get data from cache");
+  // }
 
-  if (DEBUG) {
-    Logger.log("Raw Json Response");
-    Logger.log(responseRows);
-  }
+  // if (DEBUG) {
+  //   Logger.log("Raw Json Response");
+  //   Logger.log(responseRows);
+  // }
   var rows = parseOdataResponseToRow(requestedFields, responseRows); // Parse raw response to array of row
 
   if (DEBUG) {
@@ -259,7 +254,7 @@ const getData = (request: GetDataRequest): GetDataResponse => {
     Logger.log(rows.length);
     if (rows.length) {
       Logger.log("First Row: ");
-      Logger.log(rows[0].values)
+      Logger.log(rows[0].values);
     }
   }
 

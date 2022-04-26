@@ -222,7 +222,7 @@ const getEntityData = (
       .throwException();
   }
 
-  putEntityDataToCache(entity, responseRows);
+  // putEntityDataToCache(entity, responseRows);
 
   return responseRows;
 };
