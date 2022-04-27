@@ -8,7 +8,6 @@
     "IS_ADMIN": "true",
     "ODATA_ENDPOINT": "\"https://dev.tks.co.th/Venio/api/odata\"",
     "DEFAULT_CACHE_DATA_TIMEOUT": "1500",
-    "MAX_CACHE_BYTES": "10000",
     "VENIO_EDM_SCHEMA_NS": "\"Venio.OData.API.Models\"",
     "VENIO_ENTITY_SCHEMA_NS": "\"Default\""
   }

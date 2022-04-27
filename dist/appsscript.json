@@ -7,7 +7,7 @@
     "companyUrl": "https://www.gofive.co.th/",
     "addonUrl": "https://www.gofive.co.th/",
     "supportUrl": "https://www.gofive.co.th/",
-    "description": "Venio CRM Connector for Google Data Studio",
+    "description": "Venio CRM connector for Google Data Studio.",
     "sources": [""],
     "authType": ["KEY"]
   }

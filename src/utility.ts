@@ -141,7 +141,7 @@ const parseSchemaXml = (
   return requestedEdmProperties;
 };
 
-const parseOdataResponseToRow = (
+const formatResponseToRow = (
   requestedFields: Fields,
   responseRows: ODataResponseRows
 ): GetDataRows => {

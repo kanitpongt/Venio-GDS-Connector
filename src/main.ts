@@ -4,7 +4,10 @@ const AUTH_PROPERTY_KEY = "dscc.key";
 const TABLE_PROPERTY_KEY = "table";
 const TABLE_LIST_PROPERTY_KEY = "tableNames";
 const CACHE_TTL_PROPERTY_KEY = "cache_ttl";
-// const CACHED_TABLE_PROPERTY_KEY = "lastRequestTable";
+
+// generic test to see if we're allowed to use cache
+const _cacheService = CacheService.getUserCache();
+const _userService = PropertiesService.getUserProperties();
 
 // https://developers.google.com/datastudio/connector/reference#isadminuser
 const isAdminUser = (): boolean => {
@@ -18,11 +21,10 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
   const isSecondRequest =
     !isFirstRequest && configParams.request_table !== undefined;
   const config = cc.getConfig();
-  const user = PropertiesService.getUserProperties();
 
   if (isFirstRequest) {
     config.setIsSteppedConfig(true);
-    user.setProperty(URL_PROPERTY_KEY, ODATA_ENDPOINT);
+    _userService.setProperty(URL_PROPERTY_KEY, ODATA_ENDPOINT);
   }
 
   if (DEBUG) {
@@ -30,8 +32,8 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
     Logger.log("isSecondRequest: " + isSecondRequest);
   }
 
-  const user_key = user.getProperty(AUTH_PROPERTY_KEY);
-  const service_url = user.getProperty(URL_PROPERTY_KEY);
+  const user_key = _userService.getProperty(AUTH_PROPERTY_KEY);
+  const service_url = _userService.getProperty(URL_PROPERTY_KEY);
 
   config
     .newCheckbox()
@@ -121,8 +123,8 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
       cache_ttl = validateCacheTTLConfig(configParams.cache_ttl as string);
     }
 
-    user.setProperty(CACHE_TTL_PROPERTY_KEY, cache_ttl.toString());
-    user.setProperty(TABLE_PROPERTY_KEY, configParams.request_table as string);
+    _userService.setProperty(CACHE_TTL_PROPERTY_KEY, cache_ttl.toString());
+    _userService.setProperty(TABLE_PROPERTY_KEY, configParams.request_table as string);
     config.setIsSteppedConfig(false);
   }
 
@@ -132,10 +134,9 @@ const getConfig = (request: GetConfigRequest): GetConfigResponse => {
 const getFields = (): Fields => {
   var fields = cc.getFields();
 
-  var user = PropertiesService.getUserProperties();
-  const path = user.getProperty(URL_PROPERTY_KEY);
-  const key = user.getProperty(AUTH_PROPERTY_KEY);
-  const table = user.getProperty(TABLE_PROPERTY_KEY);
+  const path = _userService.getProperty(URL_PROPERTY_KEY);
+  const key = _userService.getProperty(AUTH_PROPERTY_KEY);
+  const table = _userService.getProperty(TABLE_PROPERTY_KEY);
 
   if (DEBUG) {
     Logger.log("User Requested Table in Get Fields: " + table);
@@ -179,12 +180,11 @@ const getSchema = (request: GetSchemaRequest): GetSchemaResponse => {
 
 // https://developers.google.com/datastudio/connector/reference#getdata
 const getData = (request: GetDataRequest): GetDataResponse => {
-  var user = PropertiesService.getUserProperties();
-  const path = user.getProperty(URL_PROPERTY_KEY);
-  const key = user.getProperty(AUTH_PROPERTY_KEY);
-  const table = user.getProperty(TABLE_PROPERTY_KEY);
+  const path = _userService.getProperty(URL_PROPERTY_KEY);
+  const key = _userService.getProperty(AUTH_PROPERTY_KEY);
+  const table = _userService.getProperty(TABLE_PROPERTY_KEY);
 
-  var cache_ttl_prop = parseInt(user.getProperty(CACHE_TTL_PROPERTY_KEY));
+  var cache_ttl_prop = parseInt(_userService.getProperty(CACHE_TTL_PROPERTY_KEY));
   cache_ttl_prop = Number.isInteger(cache_ttl_prop)
     ? cache_ttl_prop
     : DEFAULT_CACHE_DATA_TIMEOUT;
@@ -200,7 +200,7 @@ const getData = (request: GetDataRequest): GetDataResponse => {
   // Ensure that this value will not be null in getEntityDataFromCache
   if (cache_ttl !== cache_ttl_prop) {
     cache_ttl = cache_ttl * 60;
-    user.setProperty(CACHE_TTL_PROPERTY_KEY, cache_ttl.toString());
+    _userService.setProperty(CACHE_TTL_PROPERTY_KEY, cache_ttl.toString());
 
     if (DEBUG) {
       Logger.log("Set cache_ttl: " + cache_ttl);
@@ -225,26 +225,26 @@ const getData = (request: GetDataRequest): GetDataResponse => {
   );
 
   //responseRows = getEntityDataFromCache(table); // Retrieves row of entity data from cache, null if no cached data
-  responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
+  if (_cacheService) {
+    responseRows = getCacheData(table);
+  } else if (DEBUG) {
+    Logger.log("Unable to use user caching service.")
+  }
 
-  // if (responseRows === null) {
-  //   if (DEBUG) {
-  //     Logger.log("No cached data for table: " + table);
-  //   }
+  if (responseRows === null) {
+    if (DEBUG) {
+      Logger.log("No cached data for table: " + table);
+    }
+    responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
+    setCacheData(responseRows, table);
+  } else if (DEBUG) {
+    Logger.log("Get data from cache.");
+  }
 
-  //   responseRows = getEntityData(path, table, key); // Make request to url on table with authentication key
-  // } else if (DEBUG) {
-  //   Logger.log("Get data from cache");
-  // }
-
-  // if (DEBUG) {
-  //   Logger.log("Raw Json Response");
-  //   Logger.log(responseRows);
-  // }
-  var rows = parseOdataResponseToRow(requestedFields, responseRows); // Parse raw response to array of row
+  var rows = formatResponseToRow(requestedFields, responseRows); // Parse raw response to array of row
 
   if (DEBUG) {
-    Logger.log("requestedFields are");
+    Logger.log("RequestedFields are: ");
     let debugRequestedFields = requestedFields.asArray();
     debugRequestedFields.map(function(field) {
       Logger.log(field.getId());

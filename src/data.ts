@@ -1,10 +1,10 @@
 var metaDataMap = new Map(); // Map for keeping track of meta data types to parse paths in the schema correctly
 const UNIQUE_SEPARATOR = ",";
 const ROW_SIZE_MULTIPLIER = 1.5;
+const MAX_CACHE_BYTES = 10000;
 
 function getAvailableTablesFromUrl(url: string, key: string): string[] {
   // get another response based on the new token
-  var user = PropertiesService.getUserProperties();
   var response;
 
   try {
@@ -72,7 +72,8 @@ function getAvailableTablesFromUrl(url: string, key: string): string[] {
   for (const table_info of responseJson["value"]) {
     tableNames.push(table_info["name"]);
   }
-  user.setProperty(TABLE_LIST_PROPERTY_KEY, tableNames.join(UNIQUE_SEPARATOR));
+
+  _userService.setProperty(TABLE_LIST_PROPERTY_KEY, tableNames.join(UNIQUE_SEPARATOR));
   return tableNames;
 }
 
@@ -227,9 +228,24 @@ const getEntityData = (
   return responseRows;
 };
 
+const getCacheData = (entity: string): any => {
+  const cachedData = Digestive.cacheGetHandler(_cacheService, entity);
+
+  return (cachedData === null) ? cachedData as null : cachedData.data;
+}
+
+const setCacheData = (data: ODataResponseRows, ...args) => {
+  const expiry = parseInt(_userService.getProperty(CACHE_TTL_PROPERTY_KEY));
+  const header = Digestive.cacheSetHandler(_cacheService, data, expiry, args);
+
+  if (DEBUG) {
+    Logger.log("Cached Data Header: ");
+    Logger.log(header);
+  }
+}
+
 const getEntityDataFromCache = (entity: string): ODataResponseRows | null => {
-  const cache = CacheService.getUserCache();
-  const cachedDataKeys = cache.get(entity);
+  const cachedDataKeys = _cacheService.get(entity);
 
   if (DEBUG) {
     Logger.log("Get cached data keys: " + cachedDataKeys);
@@ -237,7 +253,7 @@ const getEntityDataFromCache = (entity: string): ODataResponseRows | null => {
   if (cachedDataKeys === null) return null;
 
   const cachedKeysArray = cachedDataKeys.split(UNIQUE_SEPARATOR);
-  const shardedData = cache.getAll(cachedKeysArray);
+  const shardedData = _cacheService.getAll(cachedKeysArray);
 
   // Assemble all cached data
   const rows = [];
@@ -250,8 +266,7 @@ const getEntityDataFromCache = (entity: string): ODataResponseRows | null => {
 };
 
 const putEntityDataToCache = (entity: string, rawData: ODataResponseRows) => {
-  const user = PropertiesService.getUserProperties();
-  let cache_ttl = parseInt(user.getProperty(CACHE_TTL_PROPERTY_KEY));
+  let cache_ttl = parseInt(_userService.getProperty(CACHE_TTL_PROPERTY_KEY));
   cache_ttl = Number.isInteger(cache_ttl)
     ? cache_ttl
     : DEFAULT_CACHE_DATA_TIMEOUT; // Probably unnecessary as it was set in get data anyway

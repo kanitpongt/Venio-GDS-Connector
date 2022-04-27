@@ -8,7 +8,7 @@ let app_config = config.build_define;
 fs.writeFileSync(".clasp.json", JSON.stringify(clasp_config), "utf8");
 
 require('esbuild').build({
-  entryPoints: ['src/main.ts', 'src/auth.ts', 'src/data.ts', 'src/utility.ts'],
+  entryPoints: ['src/main.ts', 'src/auth.ts', 'src/data.ts', 'src/utility.ts', 'src/Digestive.ts'],
   bundle: true,
   outdir: 'dist',
   define: app_config,
